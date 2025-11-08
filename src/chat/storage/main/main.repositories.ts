@@ -1,10 +1,10 @@
 import { Module } from '@nestjs/common';
-import { UserModel } from './models/user.model';
 import { SequelizeModule } from '@nestjs/sequelize';
 import { MainRepos } from './repositories';
+import { MainModels } from './models';
 
 @Module({
-  imports: [SequelizeModule.forFeature([UserModel], 'main')],
+  imports: [SequelizeModule.forFeature(MainModels, 'main')],
   providers: [...MainRepos],
   exports: [...MainRepos],
 })

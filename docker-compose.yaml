@@ -33,8 +33,14 @@ services:
       - MYSQL_PASSWORD=${MAIN_DB_PASSWORD}
     ports:
       - '3309:3306'
-    # volumes:
+    volumes:
+      - ./mysql-init:/docker-entrypoint-initdb.d:ro
     # - ./.volumes/main-db:/var/lib/mysql
+    command: >
+      mysqld --server-id=1
+             --log-bin=mysql-bin
+             --binlog-format=ROW
+             --binlog-row-image=FULL
     restart: always
     networks:
       - local-development
@@ -79,6 +85,29 @@ services:
       timeout: 5s
       retries: 5
 
+  maxwell:
+    image: zendesk/maxwell
+    container_name: maxwell
+    hostname: maxwell
+    depends_on:
+      main-db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      - MAIN_DB_DATABASE=${MAIN_DB_DATABASE}
+      - MAIN_DB_USERNAME=${MAIN_DB_USERNAME}
+      - MAIN_DB_PASSWORD=${MAIN_DB_PASSWORD}
+      - RABBITMQ_USER=${RABBITMQ_USER}
+      - RABBITMQ_PASS=${RABBITMQ_PASS}
+      - NODE_ENV=${NODE_ENV}
+    entrypoint: ['/config/entrypoint.sh']
+    volumes:
+      - ./maxwell/entrypoint.sh:/config/entrypoint.sh
+      - ./maxwell/config.template.properties:/config/config.template.properties
+    networks:
+      - local-development
+
   chat:
     container_name: chat
     hostname: chat
@@ -109,6 +138,9 @@ services:
       - REDIS_HOST
       - REDIS_PORT
       - REDIS_PASSWORD
+
+      - CHAT_EXCHANGE
+      - MESSAGE_EXCHANGE
 
     ports:
       - '${PORT}:${PORT}'

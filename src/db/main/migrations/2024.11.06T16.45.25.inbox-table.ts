@@ -5,7 +5,7 @@ export const up: Migration = async ({ context: sequelize }) => {
   const queryInterface = sequelize.getQueryInterface();
 
   await queryInterface.createTable(
-    'user',
+    'inbox',
     {
       id: {
         type: DataTypes.INTEGER,
@@ -13,29 +13,11 @@ export const up: Migration = async ({ context: sequelize }) => {
         allowNull: false,
         primaryKey: true,
       },
-      name: {
-        type: DataTypes.STRING,
+      event_id: {
+        type: DataTypes.STRING(255),
         allowNull: false,
       },
-      phone: {
-        type: DataTypes.STRING,
-        unique: true,
-        allowNull: false,
-      },
-      national_id: {
-        type: DataTypes.STRING,
-        allowNull: false,
-      },
-      password: {
-        type: DataTypes.BLOB,
-        allowNull: true,
-      },
-      verification_status: {
-        type: DataTypes.ENUM('UNVERIFIED', 'VERIFIED'),
-        allowNull: false,
-        defaultValue: 'UNVERIFIED',
-      },
-      version: {
+      event_count: {
         type: DataTypes.INTEGER,
         allowNull: false,
         defaultValue: 0,
@@ -52,26 +34,20 @@ export const up: Migration = async ({ context: sequelize }) => {
           'CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP',
         ),
       },
-      deleted_at: {
-        type: DataTypes.DATE,
-        allowNull: true,
-      },
     },
     {
-      charset: 'utf8mb4',
-      collate: 'utf8mb4_unicode_ci',
+      charset: 'utf8',
+      collate: 'utf8_unicode_ci',
     },
   );
 
-  // Add index on phone & NID columns --------------------------------
-  await Promise.all([
-    queryInterface.addIndex('user', ['id', 'deleted_at']),
-    queryInterface.addIndex('user', ['phone']),
-    queryInterface.addIndex('user', ['national_id']),
-  ]);
+  await queryInterface.addIndex('inbox', ['event_id', 'event_count'], {
+    unique: true,
+    name: 'inbox_event_id_event_count_unique',
+  });
 };
 
 export const down: Migration = async ({ context: sequelize }) => {
   const queryInterface = sequelize.getQueryInterface();
-  return queryInterface.dropTable('user');
+  return queryInterface.dropTable('inbox');
 };

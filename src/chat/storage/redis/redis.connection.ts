@@ -3,7 +3,7 @@ import Redis, { RedisOptions } from 'ioredis';
 import { Logger } from '@nestjs/common';
 export const REDIS_CLIENT = 'REDIS_CLIENT';
 
-const redisProvider: Provider = {
+export const RedisProvider: Provider = {
   provide: REDIS_CLIENT,
   useFactory: () => {
     const logger = new Logger('RedisConnection');
@@ -41,7 +41,7 @@ const redisProvider: Provider = {
 };
 
 @Module({
-  providers: [redisProvider],
-  exports: [redisProvider],
+  providers: [RedisProvider],
+  exports: [RedisProvider],
 })
 export class RedisConnection {}
