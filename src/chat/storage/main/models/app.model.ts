@@ -19,11 +19,6 @@ import { Chat } from './chat.model';
       fields: ['token'],
       name: 'index_apps_on_token',
     },
-    {
-      unique: true,
-      fields: ['token', 'id'],
-      name: 'index_apps_on_token_and_id',
-    },
   ],
 })
 export class App extends Model {

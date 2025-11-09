@@ -15,8 +15,9 @@ import { Chat } from './chat.model';
   timestamps: true,
   indexes: [
     {
+      unique: true,
       fields: ['chat_id', 'message_number'],
-      name: 'index_messages_on_chat_id_and_message_number',
+      name: 'index_messages_on_chat_id_and_message_number_unique',
     },
   ],
 })

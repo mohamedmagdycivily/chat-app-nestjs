@@ -36,10 +36,12 @@ export const up: Migration = async ({ context: sequelize }) => {
     },
   });
 
-  // Add composite index on chat_id and message_number
+  // Add unique composite index on chat_id and message_number
+  // This enforces the business rule: messages have unique numbers within each chat
   await sequelize.getQueryInterface().addIndex('messages', {
     fields: ['chat_id', 'message_number'],
-    name: 'index_messages_on_chat_id_and_message_number',
+    unique: true,
+    name: 'index_messages_on_chat_id_and_message_number_unique',
   });
 };
 

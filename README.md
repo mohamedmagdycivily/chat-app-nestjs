@@ -84,7 +84,6 @@ docker compose up --build
 
 - Primary key on `id`
 - Unique index on `token` (`index_apps_on_token`)
-- Composite unique index on `(token, id)` (`index_apps_on_token_and_id`) =>> we always need to get the id by the token so we use the index and get the data without going to heap.
 
 ### `chats`
 
@@ -97,7 +96,7 @@ docker compose up --build
 **Indexes:**
 
 - Primary key on `id`
-- Composite index on `(app_id, chat_number, id)` (`index_chats_on_app_id_and_chat_number_and_id`)
+- Unique composite index on `(app_id, chat_number)` (`index_chats_on_app_id_and_chat_number_unique`) - enforces uniqueness of chat numbers within each application
 
 ### `messages`
 
@@ -110,7 +109,7 @@ docker compose up --build
 **Indexes:**
 
 - Primary key on `id`
-- Composite index on `(chat_id, message_number)` (`index_messages_on_chat_id_and_message_number`)
+- Unique composite index on `(chat_id, message_number)` (`index_messages_on_chat_id_and_message_number_unique`) - enforces uniqueness of message numbers within each chat
 
 ### `inbox`
 

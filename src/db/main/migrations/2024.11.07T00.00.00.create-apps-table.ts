@@ -37,12 +37,6 @@ export const up: Migration = async ({ context: sequelize }) => {
     unique: true,
     name: 'index_apps_on_token',
   });
-
-  // Add composite unique index on token and id
-  await sequelize.getQueryInterface().addIndex('apps', ['token', 'id'], {
-    unique: true,
-    name: 'index_apps_on_token_and_id',
-  });
 };
 
 export const down: Migration = async ({ context: sequelize }) => {

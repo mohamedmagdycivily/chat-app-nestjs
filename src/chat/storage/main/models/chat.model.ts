@@ -17,8 +17,9 @@ import { Message } from './message.model';
   timestamps: true,
   indexes: [
     {
-      fields: ['app_id', 'chat_number', 'id'],
-      name: 'index_chats_on_app_id_and_chat_number_and_id',
+      unique: true,
+      fields: ['app_id', 'chat_number'],
+      name: 'index_chats_on_app_id_and_chat_number_unique',
     },
   ],
 })

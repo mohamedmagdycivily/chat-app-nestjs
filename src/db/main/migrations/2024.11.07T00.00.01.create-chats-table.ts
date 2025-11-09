@@ -37,11 +37,13 @@ export const up: Migration = async ({ context: sequelize }) => {
     },
   });
 
-  // Add composite index on app_id, chat_number, and id
+  // Add unique composite index on app_id and chat_number
+  // This enforces the business rule: no 2 chats in the same application may have the same number
   await sequelize
     .getQueryInterface()
-    .addIndex('chats', ['app_id', 'chat_number', 'id'], {
-      name: 'index_chats_on_app_id_and_chat_number_and_id',
+    .addIndex('chats', ['app_id', 'chat_number'], {
+      unique: true,
+      name: 'index_chats_on_app_id_and_chat_number_unique',
     });
 };
 
