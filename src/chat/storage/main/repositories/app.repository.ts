@@ -50,6 +50,42 @@ export class AppRepository {
     );
   }
 
+  async bulkUpdateChatCounts(
+    updates: Array<{ id: number; chat_count: number }>,
+  ): Promise<void> {
+    if (updates.length === 0) {
+      return;
+    }
+
+    // Build CASE statement with parameterized values
+    const caseStatements = updates
+      .map((u, index) => `WHEN :id${index} THEN :count${index}`)
+      .join(' ');
+
+    const ids = updates.map((u) => u.id);
+    const idsPlaceholders = ids.map((_, index) => `:inId${index}`).join(',');
+
+    const query = `
+      UPDATE apps 
+      SET chat_count = CASE id
+        ${caseStatements}
+      END
+      WHERE id IN (${idsPlaceholders})
+    `;
+
+    // Build replacements object
+    const replacements: Record<string, number> = {};
+    updates.forEach((u, index) => {
+      replacements[`id${index}`] = u.id;
+      replacements[`count${index}`] = u.chat_count;
+      replacements[`inId${index}`] = u.id;
+    });
+
+    await this.appModel.sequelize.query(query, {
+      replacements,
+    });
+  }
+
   async exists(token: number): Promise<boolean> {
     const count = await this.appModel.count({
       where: { token },

@@ -55,6 +55,42 @@ export class ChatRepository {
     );
   }
 
+  async bulkUpdateMessageCounts(
+    updates: Array<{ id: number; message_count: number }>,
+  ): Promise<void> {
+    if (updates.length === 0) {
+      return;
+    }
+
+    // Build CASE statement with parameterized values
+    const caseStatements = updates
+      .map((u, index) => `WHEN :id${index} THEN :count${index}`)
+      .join(' ');
+
+    const ids = updates.map((u) => u.id);
+    const idsPlaceholders = ids.map((_, index) => `:inId${index}`).join(',');
+
+    const query = `
+      UPDATE chats 
+      SET message_count = CASE id
+        ${caseStatements}
+      END
+      WHERE id IN (${idsPlaceholders})
+    `;
+
+    // Build replacements object
+    const replacements: Record<string, number> = {};
+    updates.forEach((u, index) => {
+      replacements[`id${index}`] = u.id;
+      replacements[`count${index}`] = u.message_count;
+      replacements[`inId${index}`] = u.id;
+    });
+
+    await this.chatModel.sequelize.query(query, {
+      replacements,
+    });
+  }
+
   async findByAppIdAndChatNumberBulk(
     app_id: number,
     chat_number: number,

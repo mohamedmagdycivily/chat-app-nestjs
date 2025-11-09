@@ -24,7 +24,7 @@ export class CronService {
 
     try {
       const redisCounts = await this.redisRepository.getAllActualChatCounts();
-      let updatedCount = 0;
+      const updates: Array<{ id: number; chat_count: number }> = [];
 
       for (const [redisKey, chatCount] of Object.entries(redisCounts)) {
         // Extract app_id from redis key (format: "app:1:chat_count_actual")
@@ -37,22 +37,24 @@ export class CronService {
           continue;
         }
 
+        updates.push({ id: app_id, chat_count: count });
+      }
+
+      if (updates.length > 0) {
         try {
-          await this.appRepository.updateChatCount(app_id, count);
-          updatedCount++;
+          await this.appRepository.bulkUpdateChatCounts(updates);
           this.logger.log(
-            `🌟 🌟 🌟 🌟 🌟 Updated app ${app_id} with chat_count: ${count}`,
+            `⏰ Actual chat counts sync completed: ${updates.length} records updated in a single query`,
           );
         } catch (error) {
           this.logger.error(
-            `❌ Failed to update app ${app_id}: ${error.message}`,
+            `❌ Failed to bulk update chat counts: ${error.message}`,
+            error.stack,
           );
         }
+      } else {
+        this.logger.log('⏰ No chat counts to sync');
       }
-
-      this.logger.log(
-        `⏰ Actual chat counts sync completed: ${updatedCount} records updated`,
-      );
     } catch (error) {
       this.logger.error(
         `❌ Error syncing actual chat counts: ${error.message}`,
@@ -72,7 +74,7 @@ export class CronService {
     try {
       const redisCounts =
         await this.redisRepository.getAllActualMessageCounts();
-      let updatedCount = 0;
+      const updates: Array<{ id: number; message_count: number }> = [];
 
       for (const [redisKey, messageCount] of Object.entries(redisCounts)) {
         // Extract chat_id from redis key (format: "chat:1:message_count_actual")
@@ -85,22 +87,24 @@ export class CronService {
           continue;
         }
 
+        updates.push({ id: chat_id, message_count: count });
+      }
+
+      if (updates.length > 0) {
         try {
-          await this.chatRepository.updateMessageCount(chat_id, count);
-          updatedCount++;
+          await this.chatRepository.bulkUpdateMessageCounts(updates);
           this.logger.log(
-            `✅ Updated chat ${chat_id} with message_count: ${count}`,
+            `⏰ Actual message counts sync completed: ${updates.length} records updated in a single query`,
           );
         } catch (error) {
           this.logger.error(
-            `❌ Failed to update chat ${chat_id}: ${error.message}`,
+            `❌ Failed to bulk update message counts: ${error.message}`,
+            error.stack,
           );
         }
+      } else {
+        this.logger.log('⏰ No message counts to sync');
       }
-
-      this.logger.log(
-        `⏰ Actual message counts sync completed: ${updatedCount} records updated`,
-      );
     } catch (error) {
       this.logger.error(
         `❌ Error syncing actual message counts: ${error.message}`,
