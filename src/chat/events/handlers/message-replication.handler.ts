@@ -66,21 +66,22 @@ export class MessageReplicationEventHandler {
     try {
       // --- Phase 1: Database Work (Idempotent) ---
       this.logger.log(
-        `🌟 🌟 🌟 🌟 🌟 Phase 1: Checking inbox for message ${messageId}`,
+        ` Phase 1: Validating event and creating message in transaction for message ${messageId}`,
       );
 
-      const isNewMessage = await this.inboxRepository.validateEvent(
-        messageId,
-        1, // eventCount
-      );
-
-      if (isNewMessage) {
-        // Message is new, create the message in the database
-        this.logger.log(
-          `✅ New message detected. Creating message ${message_number} for chat ${chat_id}`,
+      await this.sequelize.transaction(async (transaction) => {
+        const isNewMessage = await this.inboxRepository.validateEvent(
+          messageId,
+          1, // eventCount
+          transaction,
         );
 
-        await this.sequelize.transaction(async (transaction) => {
+        if (isNewMessage) {
+          // Message is new, create the message in the same transaction
+          this.logger.log(
+            `✅ New message detected. Creating message ${message_number} for chat ${chat_id}`,
+          );
+
           await this.messageRepository.create(
             {
               chat_id,
@@ -89,21 +90,17 @@ export class MessageReplicationEventHandler {
             },
             transaction,
           );
-        });
 
-        this.logger.log(
-          `🌟 🌟 🌟 🌟 🌟 Phase 1 complete: Message created in database`,
-        );
-      } else {
-        this.logger.log(
-          `🌟 🌟 🌟 🌟 🌟 Duplicate message ${messageId}. Skipping database write.`,
-        );
-      }
+          this.logger.log(` Phase 1 complete: Message created in database`);
+        } else {
+          this.logger.log(
+            ` Duplicate message ${messageId}. Skipping database write.`,
+          );
+        }
+      });
 
       // --- Phase 2: Redis Counter (Atomic & Idempotent) ---
-      this.logger.log(
-        `🌟 🌟 🌟 🌟 🌟 Phase 2: Running atomic Lua script for counter`,
-      );
+      this.logger.log(` Phase 2: Running atomic Lua script for counter`);
 
       const result =
         await this.redisRepository.atomicLockAndIncrementMessageCount(

@@ -29,7 +29,6 @@ export class MessageService {
     if (!app) {
       throw new NotFoundException('Application not found');
     }
-    console.log('🌟 🌟 🌟 🌟 🌟 ');
     // Find the chat
     const chat = await this.chatRepository.findByAppIdAndChatNumber(
       app.id,

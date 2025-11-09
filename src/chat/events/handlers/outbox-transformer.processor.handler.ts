@@ -58,9 +58,9 @@ export class OutboxTransformerProcessor {
   async handleOutboxEvent(msg: MaxwellCDCEvent) {
     try {
       this.logger.log(
-        `🌟 🌟 🌟 🌟 🌟  Received CDC event: ${msg.data.event_type} (${msg.data.event_id})`,
+        ` Received CDC event: ${msg.data.event_type} (${msg.data.event_id})`,
       );
-      this.logger.log(`🌟 🌟 🌟 🌟 🌟  msg: ${JSON.stringify(msg)}`);
+      this.logger.log(` msg: ${JSON.stringify(msg)}`);
 
       // Only process INSERT events (new outbox records)
       if (msg.type !== 'insert') {

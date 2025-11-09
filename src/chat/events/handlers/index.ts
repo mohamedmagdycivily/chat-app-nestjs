@@ -5,5 +5,5 @@ import { OutboxTransformerProcessor } from './outbox-transformer.processor.handl
 export const EventHandlers = [
   ChatReplicationEventHandler,
   MessageReplicationEventHandler,
-  OutboxTransformerProcessor,
+  // OutboxTransformerProcessor,
 ];

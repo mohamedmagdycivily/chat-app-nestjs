@@ -18,9 +18,7 @@ export class CronService {
   // Run every 30 minutes
   @Cron(CronExpression.EVERY_5_MINUTES)
   async syncActualChatCounts() {
-    this.logger.log(
-      '🌟 🌟 🌟 🌟 🌟 Starting actual chat counts sync from Redis to MySQL',
-    );
+    this.logger.log(' Starting actual chat counts sync from Redis to MySQL');
 
     try {
       const redisCounts = await this.redisRepository.getAllActualChatCounts();

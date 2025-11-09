@@ -61,21 +61,22 @@ export class ChatReplicationEventHandler {
     try {
       // --- Phase 1: Database Work (Idempotent) ---
       this.logger.log(
-        `🌟 🌟 🌟 🌟 🌟 Phase 1: Checking inbox for message ${messageId}`,
+        `Phase 1: Validating event and creating chat in transaction for message ${messageId}`,
       );
 
-      const isNewMessage = await this.inboxRepository.validateEvent(
-        messageId,
-        1, // eventCount
-      );
-
-      if (isNewMessage) {
-        // Message is new, create the chat in the database
-        this.logger.log(
-          `✅ New message detected. Creating chat ${chat_number} for app ${app_id}`,
+      await this.sequelize.transaction(async (transaction) => {
+        const isNewMessage = await this.inboxRepository.validateEvent(
+          messageId,
+          1, // eventCount
+          transaction,
         );
 
-        await this.sequelize.transaction(async (transaction) => {
+        if (isNewMessage) {
+          // Message is new, create the chat in the same transaction
+          this.logger.log(
+            `✅ New message detected. Creating chat ${chat_number} for app ${app_id}`,
+          );
+
           await this.chatRepository.create(
             {
               app_id,
@@ -83,21 +84,17 @@ export class ChatReplicationEventHandler {
             },
             transaction,
           );
-        });
 
-        this.logger.log(
-          `🌟 🌟 🌟 🌟 🌟 Phase 1 complete: Chat created in database`,
-        );
-      } else {
-        this.logger.log(
-          `🌟 🌟 🌟 🌟 🌟 Duplicate message ${messageId}. Skipping database write.`,
-        );
-      }
+          this.logger.log(`Phase 1 complete: Chat created in database`);
+        } else {
+          this.logger.log(
+            ` Duplicate message ${messageId}. Skipping database write.`,
+          );
+        }
+      });
 
       // --- Phase 2: Redis Counter (Atomic & Idempotent) ---
-      this.logger.log(
-        `🌟 🌟 🌟 🌟 🌟 Phase 2: Running atomic Lua script for counter`,
-      );
+      this.logger.log(` Phase 2: Running atomic Lua script for counter`);
 
       const result = await this.redisRepository.atomicLockAndIncrementChatCount(
         messageId.toString(),
