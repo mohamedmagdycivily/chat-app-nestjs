@@ -21,6 +21,7 @@ The following features are **not covered** in this implementation:
 
 - **ElasticSearch Integration**: Message search with partial matching is not implemented
 - **Cursor-based Pagination**: Pagination using cursors is not implemented
+- **Cron Job Isolation**: The count synchronization cron job runs in the same service as the API. When scaling to multiple instances, the cron job will run on each instance, potentially causing duplicate executions. It should be moved to a separate service, use a distributed lock mechanism, or be implemented as a Kubernetes CronJob to ensure only one instance executes it.
 
 ## Technology Stack
 
