@@ -50,6 +50,7 @@ CREATE_ONLY=true npm run load-test
 ```
 
 This mode is useful for:
+
 - Testing write performance only
 - Generating data quickly without reading it back
 - Reducing test execution time
@@ -106,7 +107,7 @@ This runs with:
 - 20 operations per user
 - 50 messages per chat
 - 20 consistency retries
-- 1 second delay between retries
+- 2 second delay between retries
 - 60 second timeout
 
 **Expected Load:** ~2,000 apps, ~2,000 chats, ~100,000 messages
@@ -123,7 +124,7 @@ This runs with:
 - 50 operations per user
 - 100 messages per chat
 - 30 consistency retries
-- 2 second delay between retries
+- 2.5 second delay between retries
 - 120 second timeout
 
 **Expected Load:** ~25,000 apps, ~25,000 chats, ~2,500,000 messages
