@@ -14,7 +14,7 @@ export const up: Migration = async ({ context: sequelize }) => {
         primaryKey: true,
       },
       event_id: {
-        type: DataTypes.STRING(255),
+        type: DataTypes.BIGINT,
         allowNull: false,
       },
       event_count: {
@@ -41,9 +41,14 @@ export const up: Migration = async ({ context: sequelize }) => {
     },
   );
 
-  await queryInterface.addIndex('inbox', ['event_id', 'event_count'], {
+  // Alter event_id column to be UNSIGNED BIGINT
+  await queryInterface.sequelize.query(
+    'ALTER TABLE `inbox` MODIFY COLUMN `event_id` BIGINT UNSIGNED NOT NULL',
+  );
+
+  await queryInterface.addIndex('inbox', ['event_id'], {
     unique: true,
-    name: 'inbox_event_id_event_count_unique',
+    name: 'inbox_event_id_unique',
   });
 };
 

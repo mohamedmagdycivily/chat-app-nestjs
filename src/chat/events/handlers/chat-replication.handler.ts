@@ -100,7 +100,7 @@ export class ChatReplicationEventHandler {
       );
 
       const result = await this.redisRepository.atomicLockAndIncrementChatCount(
-        messageId,
+        messageId.toString(),
         app_id,
       );
 

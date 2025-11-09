@@ -36,9 +36,10 @@ export const up: Migration = async ({ context: sequelize }) => {
     },
   });
 
-  // Add index on chat_id
-  await sequelize.getQueryInterface().addIndex('messages', ['chat_id'], {
-    name: 'index_messages_on_chat_id',
+  // Add composite index on chat_id and message_number
+  await sequelize.getQueryInterface().addIndex('messages', {
+    fields: ['chat_id', 'message_number'],
+    name: 'index_messages_on_chat_id_and_message_number',
   });
 };
 

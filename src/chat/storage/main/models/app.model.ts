@@ -13,6 +13,18 @@ import { Chat } from './chat.model';
 @Table({
   tableName: 'apps',
   timestamps: true,
+  indexes: [
+    {
+      unique: true,
+      fields: ['token'],
+      name: 'index_apps_on_token',
+    },
+    {
+      unique: true,
+      fields: ['token', 'id'],
+      name: 'index_apps_on_token_and_id',
+    },
+  ],
 })
 export class App extends Model {
   @Column({

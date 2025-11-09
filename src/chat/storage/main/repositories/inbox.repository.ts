@@ -11,7 +11,7 @@ export class InboxRepository {
   ) {}
 
   async validateEvent(
-    eventId: string,
+    eventId: number,
     eventCount: number,
     transaction?: Transaction,
   ): Promise<boolean> {

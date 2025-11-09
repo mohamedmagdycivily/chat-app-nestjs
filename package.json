@@ -26,7 +26,8 @@
     "db:migration:main:up": "node src/db/main/run.ts up",
     "db:migration:main:down": "node src/db/main/run.ts down",
     "load-test": "node load-test.js",
-    "load-test:heavy": "CONCURRENT_USERS=20 OPERATIONS_PER_USER=20 MESSAGES_PER_CHAT=50 CONSISTENCY_RETRIES=20 CONSISTENCY_DELAY=1000 TIMEOUT=60000 node load-test.js",
+    "load-test:create-only": "CREATE_ONLY=true node load-test.js",
+    "load-test:heavy": "CONCURRENT_USERS=10 OPERATIONS_PER_USER=20 MESSAGES_PER_CHAT=50 CONSISTENCY_RETRIES=20 CONSISTENCY_DELAY=1000 TIMEOUT=60000 node load-test.js",
     "load-test:extreme": "CONCURRENT_USERS=500 OPERATIONS_PER_USER=50 MESSAGES_PER_CHAT=100 CONSISTENCY_RETRIES=30 CONSISTENCY_DELAY=2000 TIMEOUT=120000 node load-test.js"
   },
   "dependencies": {
@@ -35,7 +36,7 @@
     "@nestjs/config": "^3.3.0",
     "@nestjs/core": "^10.0.0",
     "@nestjs/platform-express": "^10.0.0",
-    "@nestjs/schedule": "^4.0.0",
+    "@nestjs/schedule": "^4.1.2",
     "@nestjs/sequelize": "^10.0.1",
     "@nestjs/swagger": "^7.4.2",
     "@nestjs/terminus": "^11.0.0",

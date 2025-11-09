@@ -35,6 +35,25 @@ This workflow is repeated multiple times per user, with multiple users running c
 npm run load-test
 ```
 
+### Create Only Mode
+
+To run only create operations (skip all find/read operations), use:
+
+```bash
+npm run load-test:create-only
+```
+
+Or with environment variable:
+
+```bash
+CREATE_ONLY=true npm run load-test
+```
+
+This mode is useful for:
+- Testing write performance only
+- Generating data quickly without reading it back
+- Reducing test execution time
+
 ### With Environment Variables
 
 You can customize the load test behavior using environment variables:
@@ -57,6 +76,7 @@ npm run load-test
 - `TIMEOUT` - Request timeout in milliseconds (default: `30000`)
 - `CONSISTENCY_RETRIES` - Number of retries for eventual consistency (default: `10`)
 - `CONSISTENCY_DELAY` - Delay between retries in milliseconds (default: `500`)
+- `CREATE_ONLY` - If set to `true`, only runs create operations (skips find/read operations) (default: `false`)
 
 ## Example Output
 

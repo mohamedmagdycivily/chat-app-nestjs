@@ -32,10 +32,16 @@ export const up: Migration = async ({ context: sequelize }) => {
     },
   });
 
-  // Add index on token
+  // Add unique index on token
   await sequelize.getQueryInterface().addIndex('apps', ['token'], {
     unique: true,
     name: 'index_apps_on_token',
+  });
+
+  // Add composite unique index on token and id
+  await sequelize.getQueryInterface().addIndex('apps', ['token', 'id'], {
+    unique: true,
+    name: 'index_apps_on_token_and_id',
   });
 };
 

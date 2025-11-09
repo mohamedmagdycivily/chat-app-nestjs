@@ -1,10 +1,10 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { AmqpConnection } from '@golevelup/nestjs-rabbitmq';
 import { ChatRepository } from '../storage/main/repositories/chat.repository';
 import { AppRepository } from '../storage/main/repositories/app.repository';
 import { RedisRepository } from '../storage/redis/redis.repository';
 import { Chat } from '../storage/main/models/chat.model';
-import { OutboxRepository } from '../storage/main/repositories/outbox.repository';
-import { generateUUID } from 'src/common/utils.helper';
+import { generateUniqueEventId } from 'src/common/utils.helper';
 import { chatEvents } from 'src/common/messaging.config';
 
 @Injectable()
@@ -13,12 +13,12 @@ export class ChatService {
     private readonly chatRepository: ChatRepository,
     private readonly appRepository: AppRepository,
     private readonly redisRepository: RedisRepository,
-    private readonly outboxRepository: OutboxRepository,
+    private readonly amqpConnection: AmqpConnection,
   ) {}
 
   async create(token: number): Promise<{ chat_number: number }> {
     // Find the app
-    const app = await this.appRepository.findByToken(token);
+    const app = await this.appRepository.findByToken(token, ['id']);
     if (!app) {
       throw new NotFoundException('Application not found');
     }
@@ -29,15 +29,13 @@ export class ChatService {
     // Initialize the chat in Redis for message counting
     await this.redisRepository.initializeChat(app.id, chat_number);
 
-    // 🚀 Step 2: Write to Outbox (single, fast, transactional write)
-    const eventId = generateUUID();
-    await this.outboxRepository.createOutboxEvent({
+    // 🚀 Step 2: Send message directly to exchange
+    const eventId = generateUniqueEventId();
+    const eventPayload = {
       eventId,
       eventType: chatEvents.CreateChatEvent,
       aggregateId: `${app.id}-${chat_number}`,
       timestamp: new Date(),
-      routingKey: chatEvents.CreateChatEvent,
-      exchange: process.env.CHAT_EXCHANGE,
       data: {
         chat: {
           chat_number,
@@ -45,7 +43,17 @@ export class ChatService {
         },
         messageId: eventId, // Include for idempotency
       },
-    });
+    };
+
+    await this.amqpConnection.publish(
+      process.env.CHAT_EXCHANGE,
+      chatEvents.CreateChatEvent,
+      eventPayload,
+      {
+        persistent: true,
+        contentType: 'application/json',
+      },
+    );
 
     // 🚀 Step 3: Return 202 Accepted immediately
     return { chat_number };
@@ -54,7 +62,7 @@ export class ChatService {
   async findAll(
     token: number,
   ): Promise<{ chats: Array<{ chat_number: number }> }> {
-    const app = await this.appRepository.findByToken(token);
+    const app = await this.appRepository.findByToken(token, ['id']);
     if (!app) {
       throw new NotFoundException('Application not found');
     }
@@ -66,7 +74,7 @@ export class ChatService {
   }
 
   async findOne(token: number, chat_number: number): Promise<Chat> {
-    const app = await this.appRepository.findByToken(token);
+    const app = await this.appRepository.findByToken(token, ['id']);
     if (!app) {
       throw new NotFoundException('Application not found');
     }

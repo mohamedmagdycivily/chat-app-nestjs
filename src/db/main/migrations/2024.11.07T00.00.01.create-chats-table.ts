@@ -37,17 +37,11 @@ export const up: Migration = async ({ context: sequelize }) => {
     },
   });
 
-  // Add index on app_id
-  await sequelize.getQueryInterface().addIndex('chats', ['app_id'], {
-    name: 'index_chats_on_app_id',
-  });
-
-  // Add unique index on app_id and chat_number
+  // Add composite index on app_id, chat_number, and id
   await sequelize
     .getQueryInterface()
-    .addIndex('chats', ['app_id', 'chat_number'], {
-      unique: true,
-      name: 'index_chats_on_app_id_and_chat_number',
+    .addIndex('chats', ['app_id', 'chat_number', 'id'], {
+      name: 'index_chats_on_app_id_and_chat_number_and_id',
     });
 };
 

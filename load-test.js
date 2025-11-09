@@ -14,6 +14,8 @@ const config = {
   // Logging settings
   verbose: process.env.VERBOSE === 'true' || false,
   progressInterval: parseInt(process.env.PROGRESS_INTERVAL || '5000'), // milliseconds
+  // Test mode
+  createOnly: process.env.CREATE_ONLY === 'true' || false,
 };
 
 // Statistics
@@ -26,6 +28,16 @@ const stats = {
   endTime: null,
   completedUsers: 0,
   totalUsers: 0,
+  responseTimes: {
+    'Create App': [],
+    'Find App': [],
+    'Create Chat': [],
+    'Find Chat': [],
+    'Find All Chats': [],
+    'Create Message': [],
+    'Find Message': [],
+    'Find All Messages': [],
+  },
 };
 
 // Progress tracking (global for cleanup)
@@ -66,14 +78,101 @@ function logProgress() {
   );
 }
 
+// Helper function to log detailed error
+function logError(operation, context, error) {
+  const errorDetails = {
+    operation,
+    context,
+    timestamp: new Date().toISOString(),
+    error: {
+      message: error.message,
+      code: error.code,
+      status: error.response?.status,
+      statusText: error.response?.statusText,
+      responseData: error.response?.data,
+      url: error.config?.url,
+      method: error.config?.method?.toUpperCase(),
+    },
+  };
+
+  // Always log errors (even in non-verbose mode)
+  console.error('\n[ERROR]', JSON.stringify(errorDetails, null, 2));
+
+  // Create a readable error message
+  let errorMsg = `${operation} failed`;
+  if (context) {
+    errorMsg += ` (${context})`;
+  }
+  if (error.response?.status) {
+    errorMsg += `: ${error.response.status} ${error.response.statusText}`;
+    if (error.response.data) {
+      errorMsg += ` - ${JSON.stringify(error.response.data)}`;
+    }
+  } else if (error.code) {
+    errorMsg += `: ${error.code} - ${error.message}`;
+  } else {
+    errorMsg += `: ${error.message}`;
+  }
+
+  return errorMsg;
+}
+
+// Helper function to calculate statistics
+function calculateStats(times) {
+  if (times.length === 0) {
+    return {
+      count: 0,
+      min: 0,
+      max: 0,
+      avg: 0,
+      median: 0,
+      p95: 0,
+      p99: 0,
+    };
+  }
+
+  const sorted = [...times].sort((a, b) => a - b);
+  const sum = times.reduce((a, b) => a + b, 0);
+  const avg = sum / times.length;
+  const min = sorted[0];
+  const max = sorted[sorted.length - 1];
+  const median = sorted[Math.floor(sorted.length / 2)];
+  const p95Index = Math.floor(sorted.length * 0.95);
+  const p99Index = Math.floor(sorted.length * 0.99);
+  const p95 = sorted[p95Index] || sorted[sorted.length - 1];
+  const p99 = sorted[p99Index] || sorted[sorted.length - 1];
+
+  return {
+    count: times.length,
+    min: min.toFixed(2),
+    max: max.toFixed(2),
+    avg: avg.toFixed(2),
+    median: median.toFixed(2),
+    p95: p95.toFixed(2),
+    p99: p99.toFixed(2),
+  };
+}
+
 // Helper function to record result
-function recordResult(success, error = null) {
+function recordResult(
+  success,
+  error = null,
+  errorDetails = null,
+  operation = null,
+  responseTime = null,
+) {
   stats.total++;
   if (success) {
     stats.success++;
+    // Record response time for successful operations
+    if (operation && responseTime !== null && stats.responseTimes[operation]) {
+      stats.responseTimes[operation].push(responseTime);
+    }
   } else {
     stats.failed++;
-    if (error) {
+    if (errorDetails) {
+      stats.errors.push(errorDetails);
+    } else if (error) {
       stats.errors.push(error);
     }
   }
@@ -161,74 +260,84 @@ async function checkServerHealth() {
 
 // Create an app
 async function createApp(userId) {
+  const startTime = Date.now();
   try {
     const response = await api.post('/api/v1/apps', {
       name: `Load Test App - User ${userId} - ${Date.now()}`,
     });
-    recordResult(true);
+    const responseTime = Date.now() - startTime;
+    recordResult(true, null, null, 'Create App', responseTime);
     const token = response.data?.data?.token;
     if (!token) {
-      throw new Error(
+      const error = new Error(
         `Invalid response structure: ${JSON.stringify(response.data)}`,
       );
+      const errorMsg = logError('Create App', `User ${userId}`, error);
+      recordResult(false, null, errorMsg, 'Create App', responseTime);
+      throw error;
     }
     return token;
   } catch (error) {
-    const errorMsg =
-      error.code === 'ECONNREFUSED'
-        ? `Create App failed: Server not accessible (${error.message})`
-        : error.response
-          ? `Create App failed: ${error.response.status} ${error.response.statusText}`
-          : `Create App failed: ${error.message}`;
-    recordResult(false, errorMsg);
+    const responseTime = Date.now() - startTime;
+    const errorMsg = logError('Create App', `User ${userId}`, error);
+    recordResult(false, null, errorMsg, 'Create App', responseTime);
     throw error;
   }
 }
 
 // Find an app by token
-async function findApp(token) {
+async function findApp(token, userId = null) {
+  const startTime = Date.now();
   try {
     const response = await api.get(`/api/v1/apps/${token}`);
-    recordResult(true);
+    const responseTime = Date.now() - startTime;
+    recordResult(true, null, null, 'Find App', responseTime);
     return response.data?.data || response.data;
   } catch (error) {
-    const errorMsg =
-      error.code === 'ECONNREFUSED'
-        ? `Find App failed: Server not accessible (${error.message})`
-        : error.response
-          ? `Find App failed: ${error.response.status} ${error.response.statusText}`
-          : `Find App failed: ${error.message}`;
-    recordResult(false, errorMsg);
+    const responseTime = Date.now() - startTime;
+    const context = userId
+      ? `User ${userId}, Token ${token}`
+      : `Token ${token}`;
+    const errorMsg = logError('Find App', context, error);
+    recordResult(false, null, errorMsg, 'Find App', responseTime);
     throw error;
   }
 }
 
 // Create a chat
-async function createChat(token) {
+async function createChat(token, userId = null) {
+  const startTime = Date.now();
   try {
     const response = await api.post(`/api/v1/apps/${token}/chats`);
-    recordResult(true);
+    const responseTime = Date.now() - startTime;
+    recordResult(true, null, null, 'Create Chat', responseTime);
     const chatNumber = response.data?.data?.chat_number;
     if (!chatNumber) {
-      throw new Error(
+      const error = new Error(
         `Invalid response structure: ${JSON.stringify(response.data)}`,
       );
+      const context = userId
+        ? `User ${userId}, App Token ${token}`
+        : `App Token ${token}`;
+      const errorMsg = logError('Create Chat', context, error);
+      recordResult(false, null, errorMsg, 'Create Chat', responseTime);
+      throw error;
     }
     return chatNumber;
   } catch (error) {
-    const errorMsg =
-      error.code === 'ECONNREFUSED'
-        ? `Create Chat failed: Server not accessible (${error.message})`
-        : error.response
-          ? `Create Chat failed: ${error.response.status} ${error.response.statusText}`
-          : `Create Chat failed: ${error.message}`;
-    recordResult(false, errorMsg);
+    const responseTime = Date.now() - startTime;
+    const context = userId
+      ? `User ${userId}, App Token ${token}`
+      : `App Token ${token}`;
+    const errorMsg = logError('Create Chat', context, error);
+    recordResult(false, null, errorMsg, 'Create Chat', responseTime);
     throw error;
   }
 }
 
 // Find a chat (with eventual consistency retry)
-async function findChat(token, chatNumber) {
+async function findChat(token, chatNumber, userId = null) {
+  const startTime = Date.now();
   try {
     const result = await retryWithConsistency(async () => {
       const response = await api.get(
@@ -236,43 +345,45 @@ async function findChat(token, chatNumber) {
       );
       return response.data?.data || response.data;
     }, `Find Chat ${chatNumber}`);
-    recordResult(true);
+    const responseTime = Date.now() - startTime;
+    recordResult(true, null, null, 'Find Chat', responseTime);
     return result;
   } catch (error) {
-    const errorMsg =
-      error.code === 'ECONNREFUSED'
-        ? `Find Chat failed: Server not accessible (${error.message})`
-        : error.response
-          ? `Find Chat failed: ${error.response.status} ${error.response.statusText}`
-          : `Find Chat failed: ${error.message}`;
-    recordResult(false, errorMsg);
+    const responseTime = Date.now() - startTime;
+    const context = userId
+      ? `User ${userId}, App Token ${token}, Chat ${chatNumber}`
+      : `App Token ${token}, Chat ${chatNumber}`;
+    const errorMsg = logError('Find Chat', context, error);
+    recordResult(false, null, errorMsg, 'Find Chat', responseTime);
     throw error;
   }
 }
 
 // Get all chats for an app (with eventual consistency retry)
-async function findAllChats(token) {
+async function findAllChats(token, userId = null) {
+  const startTime = Date.now();
   try {
     const result = await retryWithConsistency(async () => {
       const response = await api.get(`/api/v1/apps/${token}/chats`);
       return response.data?.data || response.data;
     }, `Find All Chats for app ${token}`);
-    recordResult(true);
+    const responseTime = Date.now() - startTime;
+    recordResult(true, null, null, 'Find All Chats', responseTime);
     return result;
   } catch (error) {
-    const errorMsg =
-      error.code === 'ECONNREFUSED'
-        ? `Find All Chats failed: Server not accessible (${error.message})`
-        : error.response
-          ? `Find All Chats failed: ${error.response.status} ${error.response.statusText}`
-          : `Find All Chats failed: ${error.message}`;
-    recordResult(false, errorMsg);
+    const responseTime = Date.now() - startTime;
+    const context = userId
+      ? `User ${userId}, App Token ${token}`
+      : `App Token ${token}`;
+    const errorMsg = logError('Find All Chats', context, error);
+    recordResult(false, null, errorMsg, 'Find All Chats', responseTime);
     throw error;
   }
 }
 
 // Create a message
-async function createMessage(token, chatNumber, messageIndex) {
+async function createMessage(token, chatNumber, messageIndex, userId = null) {
+  const startTime = Date.now();
   try {
     const response = await api.post(
       `/api/v1/apps/${token}/chats/${chatNumber}/messages`,
@@ -280,28 +391,35 @@ async function createMessage(token, chatNumber, messageIndex) {
         content: `Load test message ${messageIndex} - ${Date.now()}`,
       },
     );
-    recordResult(true);
+    const responseTime = Date.now() - startTime;
+    recordResult(true, null, null, 'Create Message', responseTime);
     const messageNumber = response.data?.data?.message_number;
     if (!messageNumber) {
-      throw new Error(
+      const error = new Error(
         `Invalid response structure: ${JSON.stringify(response.data)}`,
       );
+      const context = userId
+        ? `User ${userId}, App Token ${token}, Chat ${chatNumber}, Message Index ${messageIndex}`
+        : `App Token ${token}, Chat ${chatNumber}, Message Index ${messageIndex}`;
+      const errorMsg = logError('Create Message', context, error);
+      recordResult(false, null, errorMsg, 'Create Message', responseTime);
+      throw error;
     }
     return messageNumber;
   } catch (error) {
-    const errorMsg =
-      error.code === 'ECONNREFUSED'
-        ? `Create Message failed: Server not accessible (${error.message})`
-        : error.response
-          ? `Create Message failed: ${error.response.status} ${error.response.statusText}`
-          : `Create Message failed: ${error.message}`;
-    recordResult(false, errorMsg);
+    const responseTime = Date.now() - startTime;
+    const context = userId
+      ? `User ${userId}, App Token ${token}, Chat ${chatNumber}, Message Index ${messageIndex}`
+      : `App Token ${token}, Chat ${chatNumber}, Message Index ${messageIndex}`;
+    const errorMsg = logError('Create Message', context, error);
+    recordResult(false, null, errorMsg, 'Create Message', responseTime);
     throw error;
   }
 }
 
 // Find a message (with eventual consistency retry)
-async function findMessage(token, chatNumber, messageNumber) {
+async function findMessage(token, chatNumber, messageNumber, userId = null) {
+  const startTime = Date.now();
   try {
     const result = await retryWithConsistency(async () => {
       const response = await api.get(
@@ -309,22 +427,23 @@ async function findMessage(token, chatNumber, messageNumber) {
       );
       return response.data?.data || response.data;
     }, `Find Message ${messageNumber}`);
-    recordResult(true);
+    const responseTime = Date.now() - startTime;
+    recordResult(true, null, null, 'Find Message', responseTime);
     return result;
   } catch (error) {
-    const errorMsg =
-      error.code === 'ECONNREFUSED'
-        ? `Find Message failed: Server not accessible (${error.message})`
-        : error.response
-          ? `Find Message failed: ${error.response.status} ${error.response.statusText}`
-          : `Find Message failed: ${error.message}`;
-    recordResult(false, errorMsg);
+    const responseTime = Date.now() - startTime;
+    const context = userId
+      ? `User ${userId}, App Token ${token}, Chat ${chatNumber}, Message ${messageNumber}`
+      : `App Token ${token}, Chat ${chatNumber}, Message ${messageNumber}`;
+    const errorMsg = logError('Find Message', context, error);
+    recordResult(false, null, errorMsg, 'Find Message', responseTime);
     throw error;
   }
 }
 
 // Get all messages for a chat (with eventual consistency retry)
-async function findAllMessages(token, chatNumber) {
+async function findAllMessages(token, chatNumber, userId = null) {
+  const startTime = Date.now();
   try {
     const result = await retryWithConsistency(async () => {
       const response = await api.get(
@@ -332,16 +451,16 @@ async function findAllMessages(token, chatNumber) {
       );
       return response.data?.data || response.data;
     }, `Find All Messages for chat ${chatNumber}`);
-    recordResult(true);
+    const responseTime = Date.now() - startTime;
+    recordResult(true, null, null, 'Find All Messages', responseTime);
     return result;
   } catch (error) {
-    const errorMsg =
-      error.code === 'ECONNREFUSED'
-        ? `Find All Messages failed: Server not accessible (${error.message})`
-        : error.response
-          ? `Find All Messages failed: ${error.response.status} ${error.response.statusText}`
-          : `Find All Messages failed: ${error.message}`;
-    recordResult(false, errorMsg);
+    const responseTime = Date.now() - startTime;
+    const context = userId
+      ? `User ${userId}, App Token ${token}, Chat ${chatNumber}`
+      : `App Token ${token}, Chat ${chatNumber}`;
+    const errorMsg = logError('Find All Messages', context, error);
+    recordResult(false, null, errorMsg, 'Find All Messages', responseTime);
     throw error;
   }
 }
@@ -363,25 +482,31 @@ async function simulateUser(userId) {
       const token = await createApp(`${userId}-${i}`);
       userStats.appsCreated++;
 
-      // 2. Find the app
-      log(`User ${userId} - Operation ${i + 1}: Finding app ${token}...`);
-      await findApp(token);
+      // 2. Find the app (skip if CREATE_ONLY mode)
+      if (!config.createOnly) {
+        log(`User ${userId} - Operation ${i + 1}: Finding app ${token}...`);
+        await findApp(token, userId);
+      }
 
       // 3. Create a chat
       log(`User ${userId} - Operation ${i + 1}: Creating chat...`);
-      const chatNumber = await createChat(token);
+      const chatNumber = await createChat(token, userId);
       userStats.chatsCreated++;
 
       // Wait a bit for eventual consistency (chat creation is async)
-      await wait(config.consistencyDelay);
+      if (!config.createOnly) {
+        await wait(config.consistencyDelay);
+      }
 
-      // 4. Find the chat (with retry for eventual consistency)
-      log(`User ${userId} - Operation ${i + 1}: Finding chat ${chatNumber}...`);
-      await findChat(token, chatNumber);
+      // 4. Find the chat (with retry for eventual consistency) - skip if CREATE_ONLY
+      if (!config.createOnly) {
+        log(`User ${userId} - Operation ${i + 1}: Finding chat ${chatNumber}...`);
+        await findChat(token, chatNumber, userId);
 
-      // 5. Get all chats for the app
-      log(`User ${userId} - Operation ${i + 1}: Getting all chats...`);
-      await findAllChats(token);
+        // 5. Get all chats for the app
+        log(`User ${userId} - Operation ${i + 1}: Getting all chats...`);
+        await findAllChats(token, userId);
+      }
 
       // 6. Create messages
       log(
@@ -389,23 +514,25 @@ async function simulateUser(userId) {
       );
       const messageNumbers = [];
       for (let j = 0; j < config.messagesPerChat; j++) {
-        const messageNumber = await createMessage(token, chatNumber, j);
+        const messageNumber = await createMessage(token, chatNumber, j, userId);
         messageNumbers.push(messageNumber);
         userStats.messagesCreated++;
       }
 
       // Wait a bit for eventual consistency (message creation is async)
-      await wait(config.consistencyDelay);
+      if (!config.createOnly) {
+        await wait(config.consistencyDelay);
 
-      // 7. Find messages (with retry for eventual consistency)
-      log(`User ${userId} - Operation ${i + 1}: Finding messages...`);
-      for (const messageNumber of messageNumbers) {
-        await findMessage(token, chatNumber, messageNumber);
+        // 7. Find messages (with retry for eventual consistency)
+        log(`User ${userId} - Operation ${i + 1}: Finding messages...`);
+        for (const messageNumber of messageNumbers) {
+          await findMessage(token, chatNumber, messageNumber, userId);
+        }
+
+        // 8. Get all messages
+        log(`User ${userId} - Operation ${i + 1}: Getting all messages...`);
+        await findAllMessages(token, chatNumber, userId);
       }
-
-      // 8. Get all messages
-      log(`User ${userId} - Operation ${i + 1}: Getting all messages...`);
-      await findAllMessages(token, chatNumber);
     }
 
     log(`User ${userId} completed successfully`);
@@ -432,6 +559,7 @@ async function runLoadTest() {
   console.log(`Eventual Consistency Retries: ${config.consistencyRetries}`);
   console.log(`Eventual Consistency Delay: ${config.consistencyDelay}ms`);
   console.log(`Verbose Logging: ${config.verbose ? 'ON' : 'OFF'}`);
+  console.log(`Create Only Mode: ${config.createOnly ? 'ON' : 'OFF'}`);
   if (!config.verbose) {
     console.log(
       `Progress updates every ${config.progressInterval / 1000} seconds`,
@@ -491,17 +619,22 @@ async function runLoadTest() {
   console.log('='.repeat(80));
 
   const duration = (stats.endTime - stats.startTime) / 1000;
-  const totalOperations =
-    config.concurrentUsers *
-    config.operationsPerUser *
-    (1 + // create app
-      1 + // find app
-      1 + // create chat
-      1 + // find chat
-      1 + // find all chats
-      config.messagesPerChat + // create messages
-      config.messagesPerChat + // find messages
-      1); // find all messages
+  const totalOperations = config.createOnly
+    ? config.concurrentUsers *
+      config.operationsPerUser *
+      (1 + // create app
+        1 + // create chat
+        config.messagesPerChat) // create messages
+    : config.concurrentUsers *
+      config.operationsPerUser *
+      (1 + // create app
+        1 + // find app
+        1 + // create chat
+        1 + // find chat
+        1 + // find all chats
+        config.messagesPerChat + // create messages
+        config.messagesPerChat + // find messages
+        1); // find all messages
 
   console.log(`Duration: ${duration.toFixed(2)} seconds`);
   console.log(`Total Operations: ${stats.total}`);
@@ -512,6 +645,45 @@ async function runLoadTest() {
     `Success Rate: ${((stats.success / stats.total) * 100).toFixed(2)}%`,
   );
   console.log(`Operations per Second: ${(stats.total / duration).toFixed(2)}`);
+
+  // Response time statistics
+  console.log('\n' + '-'.repeat(80));
+  console.log('Response Time Statistics (in milliseconds):');
+  console.log('-'.repeat(80));
+  console.log(
+    'Operation'.padEnd(20) +
+      'Count'.padEnd(10) +
+      'Min'.padEnd(10) +
+      'Max'.padEnd(10) +
+      'Avg'.padEnd(10) +
+      'Median'.padEnd(10) +
+      'P95'.padEnd(10) +
+      'P99',
+  );
+  console.log('-'.repeat(80));
+
+  // Sort operations by average response time (descending) to show bottlenecks first
+  const operationStats = Object.entries(stats.responseTimes)
+    .map(([operation, times]) => ({
+      operation,
+      stats: calculateStats(times),
+    }))
+    .sort((a, b) => parseFloat(b.stats.avg) - parseFloat(a.stats.avg));
+
+  operationStats.forEach(({ operation, stats: opStats }) => {
+    if (opStats.count > 0) {
+      console.log(
+        operation.padEnd(20) +
+          opStats.count.toString().padEnd(10) +
+          opStats.min.padEnd(10) +
+          opStats.max.padEnd(10) +
+          opStats.avg.padEnd(10) +
+          opStats.median.padEnd(10) +
+          opStats.p95.padEnd(10) +
+          opStats.p99,
+      );
+    }
+  });
 
   // User statistics
   console.log('\n' + '-'.repeat(80));

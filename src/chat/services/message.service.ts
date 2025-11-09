@@ -1,12 +1,12 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { AmqpConnection } from '@golevelup/nestjs-rabbitmq';
 import { MessageRepository } from '../storage/main/repositories/message.repository';
 import { ChatRepository } from '../storage/main/repositories/chat.repository';
 import { AppRepository } from '../storage/main/repositories/app.repository';
 import { RedisRepository } from '../storage/redis/redis.repository';
-import { OutboxRepository } from '../storage/main/repositories/outbox.repository';
 import { CreateMessageDto } from '../dtos/create-message.dto';
 import { Message } from '../storage/main/models/message.model';
-import { generateUUID } from 'src/common/utils.helper';
+import { generateUniqueEventId } from 'src/common/utils.helper';
 import { messageEvents } from 'src/common/messaging.config';
 
 @Injectable()
@@ -16,7 +16,7 @@ export class MessageService {
     private readonly chatRepository: ChatRepository,
     private readonly appRepository: AppRepository,
     private readonly redisRepository: RedisRepository,
-    private readonly outboxRepository: OutboxRepository,
+    private readonly amqpConnection: AmqpConnection,
   ) {}
 
   async create(
@@ -25,35 +25,34 @@ export class MessageService {
     createMessageDto: CreateMessageDto,
   ): Promise<{ message_number: number }> {
     // Find the app
-    const app = await this.appRepository.findByToken(token);
+    const app = await this.appRepository.findByToken(token, ['id']);
     if (!app) {
       throw new NotFoundException('Application not found');
     }
-
+    console.log('🌟 🌟 🌟 🌟 🌟 ');
     // Find the chat
     const chat = await this.chatRepository.findByAppIdAndChatNumber(
       app.id,
       chat_number,
+      ['id'],
     );
 
     if (!chat) {
       throw new NotFoundException('Chat not found');
     }
-
+    //
     // 🚀 Step 1: Get Unique Number from Redis (INCR chat:{chat_id}:message_number_generator)
     const message_number = await this.redisRepository.getNextMessageNumber(
       chat.id,
     );
 
-    // 🚀 Step 2: Write to Outbox (single, fast, transactional write)
-    const eventId = generateUUID();
-    await this.outboxRepository.createOutboxEvent({
+    // 🚀 Step 2: Send message directly to exchange
+    const eventId = generateUniqueEventId();
+    const eventPayload = {
       eventId,
       eventType: messageEvents.CreateMessageEvent,
       aggregateId: `${chat.id}-${message_number}`,
       timestamp: new Date(),
-      routingKey: messageEvents.CreateMessageEvent,
-      exchange: process.env.MESSAGE_EXCHANGE,
       data: {
         message: {
           message_number,
@@ -62,7 +61,17 @@ export class MessageService {
         },
         messageId: eventId, // Include for idempotency
       },
-    });
+    };
+
+    await this.amqpConnection.publish(
+      process.env.MESSAGE_EXCHANGE,
+      messageEvents.CreateMessageEvent,
+      eventPayload,
+      {
+        persistent: true,
+        contentType: 'application/json',
+      },
+    );
 
     // 🚀 Step 3: Return 202 Accepted immediately
     return { message_number };
@@ -72,7 +81,7 @@ export class MessageService {
     token: number,
     chat_number: number,
   ): Promise<Array<{ message_number: number; content: string }>> {
-    const app = await this.appRepository.findByToken(token);
+    const app = await this.appRepository.findByToken(token, ['id']);
     if (!app) {
       throw new NotFoundException('Application not found');
     }
@@ -80,6 +89,7 @@ export class MessageService {
     const chat = await this.chatRepository.findByAppIdAndChatNumber(
       app.id,
       chat_number,
+      ['id'],
     );
 
     if (!chat) {
@@ -98,7 +108,7 @@ export class MessageService {
     chat_number: number,
     message_number: number,
   ): Promise<Message> {
-    const app = await this.appRepository.findByToken(token);
+    const app = await this.appRepository.findByToken(token, ['id']);
     if (!app) {
       throw new NotFoundException('Application not found');
     }
@@ -106,6 +116,7 @@ export class MessageService {
     const chat = await this.chatRepository.findByAppIdAndChatNumber(
       app.id,
       chat_number,
+      ['id'],
     );
 
     if (!chat) {

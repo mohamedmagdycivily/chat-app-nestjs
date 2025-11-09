@@ -21,9 +21,11 @@ export class ChatRepository {
   async findByAppIdAndChatNumber(
     app_id: number,
     chat_number: number,
+    attributes?: string[],
   ): Promise<Chat | null> {
     return this.chatModel.findOne({
       where: { app_id, chat_number },
+      attributes,
     });
   }
 

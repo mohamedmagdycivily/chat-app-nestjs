@@ -15,6 +15,12 @@ import { Message } from './message.model';
 @Table({
   tableName: 'chats',
   timestamps: true,
+  indexes: [
+    {
+      fields: ['app_id', 'chat_number', 'id'],
+      name: 'index_chats_on_app_id_and_chat_number_and_id',
+    },
+  ],
 })
 export class Chat extends Model {
   @Column({

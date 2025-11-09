@@ -21,11 +21,13 @@ export class MessageRepository {
     return this.messageModel.create(data, { transaction });
   }
 
-  async findByChatId(chat_id: number): Promise<Message[]> {
+  async findByChatId(
+    chat_id: number,
+    attributes?: string[],
+  ): Promise<Message[]> {
     return this.messageModel.findAll({
       where: { chat_id },
-      attributes: ['message_number', 'content'],
-      order: [['message_number', 'ASC']],
+      attributes,
     });
   }
 

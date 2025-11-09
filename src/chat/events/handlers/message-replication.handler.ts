@@ -107,7 +107,7 @@ export class MessageReplicationEventHandler {
 
       const result =
         await this.redisRepository.atomicLockAndIncrementMessageCount(
-          messageId,
+          messageId.toString(),
           chat_id,
         );
 

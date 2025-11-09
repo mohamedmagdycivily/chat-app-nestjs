@@ -5,6 +5,7 @@ import {
   Table,
   AutoIncrement,
   AllowNull,
+  DataType,
 } from 'sequelize-typescript';
 
 @Table({
@@ -12,6 +13,13 @@ import {
   timestamps: true,
   underscored: true,
   omitNull: true,
+  indexes: [
+    {
+      unique: true,
+      fields: ['event_id'],
+      name: 'inbox_event_id_unique',
+    },
+  ],
 })
 export class InboxModel extends Model {
   @PrimaryKey
@@ -20,8 +28,11 @@ export class InboxModel extends Model {
   id: number;
 
   @AllowNull(false)
-  @Column
-  eventId: string;
+  @Column({
+    type: DataType.BIGINT,
+    unique: true,
+  })
+  eventId: number;
 
   @AllowNull(false)
   @Column({

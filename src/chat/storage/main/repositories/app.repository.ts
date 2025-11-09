@@ -20,18 +20,19 @@ export class AppRepository {
     });
   }
 
-  async findByToken(token: number): Promise<App | null> {
+  async findByToken(token: number, attributes?: string[]): Promise<App | null> {
     return this.appModel.findOne({
       where: { token },
+      attributes,
     });
   }
 
-  async findByTokenWithChats(token: number): Promise<App | null> {
-    return this.appModel.findOne({
-      where: { token },
-      include: [Chat],
-    });
-  }
+  // async findByTokenWithChats(token: number): Promise<App | null> {
+  //   return this.appModel.findOne({
+  //     where: { token },
+  //     include: [Chat],
+  //   });
+  // }
 
   async update(id: number, data: Partial<App>): Promise<[number, App[]]> {
     return this.appModel.update(data, {

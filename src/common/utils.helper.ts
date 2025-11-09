@@ -2,6 +2,7 @@ import { Expose } from 'class-transformer';
 import { ValidationError } from 'class-validator';
 import { v4 as UUIDv4 } from 'uuid';
 import { Channel, Message } from 'amqplib';
+import { randomInt } from 'crypto';
 export class ErrorItem {
   @Expose()
   message: string;
@@ -40,6 +41,24 @@ export const getPastDateInDays = (numberOfDay: number) => {
 
 export const generateUUID = () => {
   return UUIDv4(); // Ex ⇨ '9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d'
+};
+
+/**
+ * Generate a cryptographically secure random event ID
+ * Uses 15-16 digit number for high volume (millions of events daily)
+ * Range: 10^15 to 10^15 + 2^48 - 1 (1,000,000,000,000,000 to 1,281,474,976,710,655)
+ * Provides ~281 trillion possible values, sufficient for millions of events daily
+ * Note: crypto.randomInt has a limit of max - min <= 2^48 - 1 (281,474,976,710,655)
+ * Uses crypto.randomInt for cryptographically secure randomness
+ */
+export const generateUniqueEventId = (): number => {
+  // crypto.randomInt limit: max - min must be <= 2^48 - 1 = 281,474,976,710,655
+  const min = 1000000000000000; // 10^15 (15 digits)
+  const maxRange = 281474976710655; // 2^48 - 1 (maximum allowed range)
+  const max = min + maxRange; // 1,281,474,976,710,655 (16 digits)
+  // Use crypto.randomInt for cryptographically secure random number
+  // Returns [min, max), so we get values from 10^15 to 1,281,474,976,710,654
+  return randomInt(min, max);
 };
 
 export function flattenValidationErrors(

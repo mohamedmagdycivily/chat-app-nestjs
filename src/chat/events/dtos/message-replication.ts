@@ -1,6 +1,7 @@
 import {
   IsDate,
   IsInt,
+  IsNumber,
   IsObject,
   IsOptional,
   IsString,
@@ -40,9 +41,9 @@ export class MessageReplicationEventDataDto {
   @Type(() => MessageReplicationDataDto)
   message: MessageReplicationDataDto;
 
-  @IsString()
+  @IsNumber()
   @IsOptional()
-  messageId?: string;
+  messageId?: number;
 }
 
 export class MessageReplicationEventDto extends EventDto {

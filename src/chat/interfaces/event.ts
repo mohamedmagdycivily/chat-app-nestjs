@@ -1,8 +1,8 @@
 import { Transform } from 'class-transformer';
-import { IsDate, IsOptional, IsString } from 'class-validator';
+import { IsDate, IsInt, IsOptional, IsString } from 'class-validator';
 export class EventDto {
-  @IsString()
-  eventId: string;
+  @IsInt()
+  eventId: number;
 
   @IsString()
   eventType: string;
@@ -20,7 +20,7 @@ export class EventDto {
 }
 
 export interface IEvent<T> {
-  eventId: string;
+  eventId: number;
   eventType: string;
   aggregateId: string;
   traceparent?: string;
@@ -29,7 +29,7 @@ export interface IEvent<T> {
 }
 
 export class Event<T> implements IEvent<T> {
-  public readonly eventId: string;
+  public readonly eventId: number;
   public readonly eventType: string;
   public readonly aggregateId: string;
   public readonly traceparent?: string;

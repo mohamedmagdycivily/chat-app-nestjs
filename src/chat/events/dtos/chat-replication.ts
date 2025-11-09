@@ -1,6 +1,7 @@
 import {
   IsDate,
   IsInt,
+  IsNumber,
   IsObject,
   IsOptional,
   IsString,
@@ -41,9 +42,9 @@ export class ChatReplicationEventDataDto {
   @Type(() => ChatReplicationDataDto)
   chat: ChatReplicationDataDto;
 
-  @IsString()
+  @IsNumber()
   @IsOptional()
-  messageId?: string;
+  messageId?: number;
 }
 
 export class ChatReplicationEventDto extends EventDto {
