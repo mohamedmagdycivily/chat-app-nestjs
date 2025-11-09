@@ -15,6 +15,13 @@ System allows creating applications with unique tokens. Each application contain
 - **Race Condition Handling**: Redis-based atomic number generation and inbox pattern for idempotent processing
 - **Count Synchronization**: Cron jobs sync Redis counts to MySQL every 30 minutes
 
+## Limitations
+
+The following features are **not covered** in this implementation:
+
+- **ElasticSearch Integration**: Message search with partial matching is not implemented
+- **Cursor-based Pagination**: Pagination using cursors is not implemented
+
 ## Technology Stack
 
 - **NestJS** (TypeScript) - Framework
