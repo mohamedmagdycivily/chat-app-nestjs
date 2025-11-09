@@ -16,7 +16,7 @@ export class CronService {
 
   // ⏰ Cron Job: Sync actual chat counts from Redis to MySQL
   // Run every 30 minutes
-  @Cron(CronExpression.EVERY_5_MINUTES)
+  @Cron(CronExpression.EVERY_30_MINUTES)
   async syncActualChatCounts() {
     this.logger.log(' Starting actual chat counts sync from Redis to MySQL');
 
@@ -62,8 +62,8 @@ export class CronService {
   }
 
   // ⏰ Cron Job: Sync actual message counts from Redis to MySQL
-  // Run every 30 minutes (offset by 15 minutes from app sync)
-  @Cron('*/6 * * * *')
+  // Run every 40 minutes
+  @Cron('*/40 * * * *')
   async syncActualMessageCounts() {
     this.logger.log(
       '⏰ Starting actual message counts sync from Redis to MySQL',
